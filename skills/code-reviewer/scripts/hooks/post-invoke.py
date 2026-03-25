@@ -75,24 +75,26 @@ def _build_parent_ctx(ctx_data: dict):
 
 
 def _build_provider(config: dict) -> tuple:
-    """Create TracerProvider and tracer for the child span."""
+    """Create TracerProvider, tracer, and ExportTracker for the child span."""
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from _telemetry import env_capture
+    from _telemetry import env_capture, exporter as exp_module
     skill_id = config.get("skill_id", "unknown")
     attrs = env_capture.get_resource_attributes()
     attrs.update({"skill.id": skill_id, "service.name": skill_id,
                   "skill.version": config.get("skill_version", "0.0.0")})
     endpoint = config.get("endpoint", "http://localhost:4318")
-    exp = OTLPSpanExporter(endpoint=f"{endpoint.rstrip('/')}/v1/traces")
-    proc = BatchSpanProcessor(exp,
+    raw_exp = OTLPSpanExporter(endpoint=f"{endpoint.rstrip('/')}/v1/traces")
+    tracker = exp_module.ExportTracker()
+    tracked_exp = exp_module.TrackingExporter(raw_exp, tracker)
+    proc = BatchSpanProcessor(tracked_exp,
                               max_export_batch_size=int(config.get("batch_size", 20)),
                               schedule_delay_millis=int(config.get("flush_interval_ms", 3000)))
     provider = TracerProvider(resource=Resource.create(attrs))
     provider.add_span_processor(proc)
-    return provider, provider.get_tracer(skill_id)
+    return provider, provider.get_tracer(skill_id), tracker
 
 
 def _set_span_status(span, outcome: str, error_msg: str) -> None:
@@ -139,10 +141,35 @@ def main() -> None:
         config = yaml.safe_load(fh)
     pii_result = pii_sanitiser.sanitise(raw_prompt, llm_response, config)
     duration_ms = _calc_duration_ms(ctx_data.get("start_time_iso", ""))
+    outcome = "success"
+    sanitised = pii_result
     parent_ctx = _build_parent_ctx(ctx_data)
-    provider, tracer = _build_provider(config)
-    _record_span(tracer, parent_ctx, config, ctx_data, "success", "", pii_result, duration_ms)
-    exporter.safe_flush(provider, config.get("error_log_path", "~/.jpmc-skills/telemetry.err"))
+    provider, tracer, tracker = _build_provider(config)
+    _record_span(tracer, parent_ctx, config, ctx_data, outcome, "", sanitised, duration_ms)
+    span_data = {
+        "span_name": "skill.completion",
+        "trace_id": ctx_data["trace_id"],
+        "span_id": ctx_data["span_id"],
+        "attributes": {
+            "skill.id": config.get("skill_id", ""),
+            "skill.name": config.get("skill_name", ""),
+            "skill.version": config.get("skill_version", ""),
+            "skill.outcome": outcome,
+            "prompt.hash": sanitised["prompt_hash"],
+            "prompt.preview": sanitised["prompt_preview"],
+            "prompt.char_count": sanitised["prompt_char_count"],
+            "response.preview": sanitised["response_preview"],
+            "response.char_count": sanitised["response_char_count"],
+            "invoke.duration_ms": duration_ms,
+        },
+    }
+    exporter.safe_flush(
+        provider,
+        config.get("error_log_path", "~/.jpmc-skills/telemetry.err"),
+        span_data=span_data,
+        config=config,
+        tracker=tracker,
+    )
     provider.force_flush(timeout_millis=5000)
     provider.shutdown()
     _SPAN_CTX_FILE.unlink(missing_ok=True)

@@ -16,12 +16,12 @@ import json
 import shutil
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 _SETUP_DIR = Path(__file__).parent.resolve()
 _SKILL_ITEMS = ["scripts", "telemetry.yaml", "config.yaml", "SKILL.md"]
-_PRE_CMD = "python3 .claude/skills/code-reviewer/scripts/hooks/pre-invoke.py"
-_POST_CMD = "python3 .claude/skills/code-reviewer/scripts/hooks/post-invoke.py"
+_VENV_PYTHON = Path.home() / ".jpmc-skills" / ".venv" / "bin" / "python3"
 
 
 def _copy_skill(dst: Path) -> None:
@@ -52,11 +52,24 @@ def _load_settings(path: Path) -> dict:
         return {}
 
 
-def _merge_hooks(settings: dict) -> dict:
+def _python_path() -> str:
+    """Return absolute path to the venv python, falling back to sys.executable."""
+    return str(_VENV_PYTHON) if _VENV_PYTHON.exists() else sys.executable
+
+
+def _hook_commands(skill_dst: Path) -> tuple[str, str]:
+    """Build absolute hook command strings for pre- and post-invoke scripts."""
+    python = _python_path()
+    pre  = skill_dst / "scripts" / "hooks" / "pre-invoke.py"
+    post = skill_dst / "scripts" / "hooks" / "post-invoke.py"
+    return f"{python} {pre}", f"{python} {post}"
+
+
+def _merge_hooks(settings: dict, pre_cmd: str, post_cmd: str) -> dict:
     """Add pre/post hook entries without removing unrelated existing hooks."""
     hooks = settings.setdefault("hooks", {})
-    pre_entry = {"hooks": [{"type": "command", "command": _PRE_CMD}]}
-    post_entry = {"hooks": [{"type": "command", "command": _POST_CMD}]}
+    pre_entry  = {"matcher": "", "hooks": [{"type": "command", "command": pre_cmd,  "timeout": 10}]}
+    post_entry = {"matcher": "", "hooks": [{"type": "command", "command": post_cmd, "timeout": 15}]}
     user_hooks = hooks.setdefault("UserPromptSubmit", [])
     user_hooks[:] = [h for h in user_hooks if "code-reviewer" not in str(h)]
     user_hooks.append(pre_entry)
@@ -64,6 +77,21 @@ def _merge_hooks(settings: dict) -> dict:
     stop_hooks[:] = [h for h in stop_hooks if "code-reviewer" not in str(h)]
     stop_hooks.append(post_entry)
     return settings
+
+
+def _check_jaeger() -> None:
+    """Warn if Jaeger is not reachable on localhost:16686. Never blocks install."""
+    try:
+        r = urllib.request.urlopen("http://localhost:16686/api/services", timeout=3)
+        services = json.loads(r.read())
+        if services.get("errors") is None:
+            print("  [check] Jaeger verified on localhost:16686")
+        else:
+            print("  [warn]  Port 4318 may have a conflict")
+    except Exception:
+        print("  [warn]  Jaeger not detected on localhost:16686")
+        print("          Make sure Jaeger is running before using")
+        print("          the skill or traces will be buffered")
 
 
 def _write_settings(path: Path, settings: dict) -> None:
@@ -108,14 +136,20 @@ def main() -> None:
     skill_dst = project_root / ".claude" / "skills" / "code-reviewer"
     settings_path = project_root / ".claude" / "settings.json"
     requirements = _SETUP_DIR / "requirements.txt"
+    pre_cmd, post_cmd = _hook_commands(skill_dst)
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("  JPMC AI Platform — code-reviewer skill setup")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
+    print(f"  Python   : {_python_path()}")
+    print(f"  Pre-hook : {pre_cmd}")
+    print(f"  Post-hook: {post_cmd}")
+    print()
     _copy_skill(skill_dst)
+    _check_jaeger()
     settings = _load_settings(settings_path)
-    settings = _merge_hooks(settings)
+    settings = _merge_hooks(settings, pre_cmd, post_cmd)
     _write_settings(settings_path, settings)
     _install_deps(requirements)
     _print_summary(skill_dst, settings_path)
