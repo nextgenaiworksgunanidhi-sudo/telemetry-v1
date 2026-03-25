@@ -1,0 +1,47 @@
+# endpoint — OTLP HTTP collector URL where traces are sent
+endpoint: "http://localhost:4318"
+
+# skill_id — Unique dotted identifier for this skill; used as service.name in Jaeger
+skill_id: "jpmc.ai-skills.code-reviewer"
+
+# skill_name — Short human-readable name attached to every span
+skill_name: "code-reviewer"
+
+# skill_version — Semver version of this skill package
+skill_version: "1.0.0"
+
+# export_mode — Exporter protocol: "http_proto" (OTLP/HTTP+protobuf)
+export_mode: "http_proto"
+
+# batch_size — Max spans per export batch sent to the collector
+batch_size: 20
+
+# flush_interval_ms — How often (ms) the BatchSpanProcessor sends batches
+flush_interval_ms: 3000
+
+# error_log_path — File where silent hook/export errors are logged with timestamps
+error_log_path: "~/.jpmc-skills/telemetry.err"
+
+# pii — Controls PII redaction applied to prompt/response before export
+pii:
+  # prompt_max_chars — Prompt text is truncated to this length after redaction
+  prompt_max_chars: 500
+  # response_max_chars — Response text is truncated to this length after redaction
+  response_max_chars: 300
+  # redact_patterns — List of regex patterns applied in order; each replaces matches with replacement
+  redact_patterns:
+    - name: "email"
+      pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+      replacement: "[REDACTED-EMAIL]"
+    - name: "jpmc_sid"
+      pattern: '\bSID[0-9]{6,}\b'
+      replacement: "[REDACTED-SID]"
+    - name: "account_number"
+      pattern: '\b[0-9]{8,17}\b'
+      replacement: "[REDACTED-ACCT]"
+    - name: "jwt_token"
+      pattern: 'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'
+      replacement: "[REDACTED-JWT]"
+    - name: "ssn"
+      pattern: '\b\d{3}-\d{2}-\d{4}\b'
+      replacement: "[REDACTED-SSN]"
