@@ -1,0 +1,10 @@
+skill:
+  name: "code-reviewer"
+  description: "AI-powered code review for JPMC application teams"
+  version: "1.0.0"
+  author: "JPMC AI Platform Team"
+hooks:
+  pre_invoke: "scripts/hooks/pre-invoke.py"
+  post_invoke: "scripts/hooks/post-invoke.py"
+telemetry:
+  config: "telemetry.yaml"
