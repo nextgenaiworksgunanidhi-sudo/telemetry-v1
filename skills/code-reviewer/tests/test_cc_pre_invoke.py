@@ -60,22 +60,26 @@ def test_skill_prompt_calls_open_span(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_open_span.assert_called_once()
 
 
-# ── Non-skill prompt is ignored ───────────────────────────────────────────────
+# ── All non-empty prompts now trigger telemetry (FIX 1 — no prefix filter) ───
 
-def test_non_skill_prompt_does_not_write_prompt_cache(
+def test_non_skill_prompt_writes_prompt_cache(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("sys.stdin", _stdin({"prompt": "what is Python?"}))
-    pre_invoke.main()
-    assert not pre_invoke._PROMPT_CACHE.exists()
+    with patch.object(pre_invoke, "_open_span"):
+        pre_invoke.main()
+    assert pre_invoke._PROMPT_CACHE.exists()
 
 
-def test_non_skill_prompt_does_not_call_open_span(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_skill_prompt_calls_open_span(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin", _stdin({"prompt": "just a normal question"}))
     mock_open_span = MagicMock()
     with patch.object(pre_invoke, "_open_span", mock_open_span):
-        pre_invoke.main()
-    mock_open_span.assert_not_called()
+        with patch("builtins.open", MagicMock(return_value=MagicMock(
+            __enter__=MagicMock(return_value=MagicMock()), __exit__=MagicMock(return_value=False)))):
+            with patch("yaml.safe_load", return_value={}):
+                pre_invoke.main()
+    mock_open_span.assert_called_once()
 
 
 def test_empty_prompt_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:

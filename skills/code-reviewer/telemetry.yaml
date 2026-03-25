@@ -22,6 +22,15 @@ flush_interval_ms: 3000
 # error_log_path — File where silent hook/export errors are logged with timestamps
 error_log_path: "~/.jpmc-skills/telemetry.err"
 
+# Fallback buffer — stores traces locally when Jaeger is unreachable
+fallback:
+  # enabled — Set to true to activate local buffering on export failure
+  enabled: true
+  # buffer_path — JSONL file where failed spans are written pending retry
+  buffer_path: "~/.jpmc-skills/pending_traces.jsonl"
+  # max_retries — Maximum number of export attempts before a span is dropped
+  max_retries: 5
+
 # pii — Controls PII redaction applied to prompt/response before export
 pii:
   # prompt_max_chars — Prompt text is truncated to this length after redaction
