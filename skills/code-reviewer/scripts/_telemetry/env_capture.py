@@ -8,6 +8,7 @@ import os
 import platform
 import socket
 import sys
+from pathlib import Path
 from typing import Optional
 
 
@@ -42,6 +43,7 @@ def get_resource_attributes() -> dict:
         "ide.type": _detect_ide(),
         "runtime.python_version": sys.version,
         "runtime.platform": platform.platform(),
+        "runtime.executable": Path(sys.executable).as_posix(),
     }
 
 
