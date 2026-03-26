@@ -7,7 +7,6 @@ whether the underlying OTLP exporter actually succeeded, since
 force_flush() returns True even when all export retries are exhausted.
 """
 
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,7 +87,7 @@ def _append_error(log_path: str, message: str) -> None:
     """Append a timestamped error line to log_path, creating dirs as needed."""
     try:
         resolved = Path(log_path).expanduser()
-        os.makedirs(resolved.parent, exist_ok=True)
+        resolved.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         with open(resolved, "a") as fh:
             fh.write(f"[{timestamp}] {message}\n")

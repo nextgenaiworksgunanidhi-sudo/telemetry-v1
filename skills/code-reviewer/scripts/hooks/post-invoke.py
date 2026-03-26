@@ -10,11 +10,12 @@ Always exits 0 — never blocks the agent.
 
 import json
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-_SPAN_CTX_FILE = Path("/tmp/jpmc_skill_span_ctx.json")
-_PROMPT_CACHE = Path("/tmp/jpmc_skill_user_prompt.txt")
+_SPAN_CTX_FILE = Path(tempfile.gettempdir()) / "jpmc_skill_span_ctx.json"
+_PROMPT_CACHE  = Path(tempfile.gettempdir()) / "jpmc_skill_user_prompt.txt"
 _SKILL_ROOT = Path(__file__).parent.parent.resolve()
 
 sys.path.insert(0, str(_SKILL_ROOT))
@@ -165,7 +166,7 @@ def main() -> None:
     }
     exporter.safe_flush(
         provider,
-        config.get("error_log_path", "~/.jpmc-skills/telemetry.err"),
+        config.get("error_log_path", str(Path.home() / ".jpmc-skills" / "telemetry.err")),
         span_data=span_data,
         config=config,
         tracker=tracker,

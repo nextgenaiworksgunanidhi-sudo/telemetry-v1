@@ -7,7 +7,6 @@ Provides two public functions:
 """
 
 import json
-import os
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -26,7 +25,7 @@ def buffer_span(span_data: dict, config: dict) -> None:
         if not fallback.get("enabled", False):
             return
 
-        buffer_path = Path(os.path.expanduser(fallback["buffer_path"]))
+        buffer_path = Path(fallback["buffer_path"]).expanduser()
         buffer_path.parent.mkdir(parents=True, exist_ok=True)
 
         now = datetime.now(timezone.utc).isoformat()
@@ -64,14 +63,13 @@ def flush_pending(config: dict) -> dict:
         if not fallback.get("enabled", False):
             return summary
 
-        buffer_path = Path(os.path.expanduser(fallback["buffer_path"]))
+        buffer_path = Path(fallback["buffer_path"]).expanduser()
         if not buffer_path.exists():
             return summary
 
         max_retries = int(fallback.get("max_retries", 5))
-        error_log_path = Path(
-            os.path.expanduser(config.get("error_log_path", "~/.jpmc-skills/telemetry.err"))
-        )
+        _default_err = str(Path.home() / ".jpmc-skills" / "telemetry.err")
+        error_log_path = Path(config.get("error_log_path", _default_err)).expanduser()
         endpoint = config.get("endpoint", "http://localhost:4318").rstrip("/")
 
         with open(buffer_path, "r", encoding="utf-8") as fh:
@@ -167,12 +165,13 @@ if __name__ == "__main__":
     print("=== fallback_buffer standalone test ===\n")
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        _td = Path(tmpdir)
         test_config = {
             "endpoint": "http://localhost:4318",
-            "error_log_path": f"{tmpdir}/telemetry.err",
+            "error_log_path": str(_td / "telemetry.err"),
             "fallback": {
                 "enabled": True,
-                "buffer_path": f"{tmpdir}/pending_traces.jsonl",
+                "buffer_path": str(_td / "pending_traces.jsonl"),
                 "max_retries": 5,
             },
         }

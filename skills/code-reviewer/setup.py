@@ -6,8 +6,9 @@ Run from your project root (the directory where .claude/ will live):
 
 What it does:
   1. Copies skill files into .claude/skills/code-reviewer/
-  2. Creates or merges .claude/settings.json with UserPromptSubmit + Stop hooks
-  3. Installs Python dependencies into the current interpreter
+  2. Installs hook scripts into ~/.jpmc-skills/skills/code-reviewer/
+  3. Creates or merges .claude/settings.json with UserPromptSubmit + Stop hooks
+  4. Installs Python dependencies into the current interpreter
 
 Always exits 0 — safe to re-run.
 """
@@ -21,7 +22,6 @@ from pathlib import Path
 
 _SETUP_DIR = Path(__file__).parent.resolve()
 _SKILL_ITEMS = ["scripts", "telemetry.yaml", "config.yaml", "SKILL.md"]
-_VENV_PYTHON = Path.home() / ".jpmc-skills" / ".venv" / "bin" / "python3"
 
 
 def _copy_skill(dst: Path) -> None:
@@ -38,7 +38,24 @@ def _copy_skill(dst: Path) -> None:
             shutil.copytree(src, target)
         else:
             shutil.copy2(src, target)
-    print(f"  [1/3] Skill files copied  → {dst}")
+    print(f"  [1/4] Skill files copied  → {dst}")
+
+
+def _install_central() -> Path:
+    """
+    Copy scripts/ into ~/.jpmc-skills/skills/code-reviewer/ so hook commands
+    that reference the central install path can always find the scripts.
+    Returns the central skill directory.
+    """
+    central = Path.home() / ".jpmc-skills" / "skills" / "code-reviewer"
+    central.mkdir(parents=True, exist_ok=True)
+    src = _SETUP_DIR / "scripts"
+    target = central / "scripts"
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(src, target)
+    print(f"  [2/4] Central install     → {central}")
+    return central
 
 
 def _load_settings(path: Path) -> dict:
@@ -52,24 +69,41 @@ def _load_settings(path: Path) -> dict:
         return {}
 
 
-def _python_path() -> str:
-    """Return absolute path to the venv python, falling back to sys.executable."""
-    return str(_VENV_PYTHON) if _VENV_PYTHON.exists() else sys.executable
+def _hook_commands() -> tuple[str, str, str, str]:
+    """
+    Build hook command strings for both Mac/Linux and Windows.
+
+    Scripts point to the installed ~/.jpmc-skills/ location so hooks
+    work regardless of which project directory setup.py was run from.
+
+    Returns (mac_pre, win_pre, mac_post, win_post).
+    """
+    skill_hooks = (
+        Path.home() / ".jpmc-skills" / "skills" / "code-reviewer" / "scripts" / "hooks"
+    )
+    mac_python = (Path.home() / ".jpmc-skills" / ".venv" / "bin" / "python3").as_posix()
+    win_python = str(Path.home() / ".jpmc-skills" / ".venv" / "Scripts" / "python.exe")
+
+    mac_pre  = f"{mac_python} {(skill_hooks / 'pre-invoke.py').as_posix()}"
+    win_pre  = f"{win_python} {skill_hooks / 'pre-invoke.py'}"
+    mac_post = f"{mac_python} {(skill_hooks / 'post-invoke.py').as_posix()}"
+    win_post = f"{win_python} {skill_hooks / 'post-invoke.py'}"
+    return mac_pre, win_pre, mac_post, win_post
 
 
-def _hook_commands(skill_dst: Path) -> tuple[str, str]:
-    """Build absolute hook command strings for pre- and post-invoke scripts."""
-    python = _python_path()
-    pre  = skill_dst / "scripts" / "hooks" / "pre-invoke.py"
-    post = skill_dst / "scripts" / "hooks" / "post-invoke.py"
-    return f"{python} {pre}", f"{python} {post}"
-
-
-def _merge_hooks(settings: dict, pre_cmd: str, post_cmd: str) -> dict:
+def _merge_hooks(
+    settings: dict,
+    mac_pre: str, win_pre: str,
+    mac_post: str, win_post: str,
+) -> dict:
     """Add pre/post hook entries without removing unrelated existing hooks."""
     hooks = settings.setdefault("hooks", {})
-    pre_entry  = {"matcher": "", "hooks": [{"type": "command", "command": pre_cmd,  "timeout": 10}]}
-    post_entry = {"matcher": "", "hooks": [{"type": "command", "command": post_cmd, "timeout": 15}]}
+    pre_entry = {"matcher": "", "hooks": [
+        {"type": "command", "command": mac_pre, "windows": win_pre, "timeout": 10}
+    ]}
+    post_entry = {"matcher": "", "hooks": [
+        {"type": "command", "command": mac_post, "windows": win_post, "timeout": 15}
+    ]}
     user_hooks = hooks.setdefault("UserPromptSubmit", [])
     user_hooks[:] = [h for h in user_hooks if "code-reviewer" not in str(h)]
     user_hooks.append(pre_entry)
@@ -99,13 +133,13 @@ def _write_settings(path: Path, settings: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as fh:
         json.dump(settings, fh, indent=2)
-    print(f"  [2/3] Hooks registered    → {path}")
+    print(f"  [3/4] Hooks registered    → {path}")
 
 
 def _install_deps(requirements: Path) -> None:
     """Install Python dependencies into the current interpreter."""
     if not requirements.exists():
-        print("  [3/3] requirements.txt not found — skipping.")
+        print("  [4/4] requirements.txt not found — skipping.")
         return
     result = subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q", "-r", str(requirements)],
@@ -113,20 +147,21 @@ def _install_deps(requirements: Path) -> None:
         text=True,
     )
     if result.returncode != 0:
-        print(f"  [3/3] WARNING: pip install failed:\n{result.stderr.strip()}")
+        print(f"  [4/4] WARNING: pip install failed:\n{result.stderr.strip()}")
     else:
-        print(f"  [3/3] Dependencies installed → {sys.executable}")
+        print(f"  [4/4] Dependencies installed → {sys.executable}")
 
 
-def _print_summary(skill_dst: Path, settings_path: Path) -> None:
+def _print_summary(skill_dst: Path, central: Path, settings_path: Path) -> None:
     """Print post-setup summary."""
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("  Setup complete. Restart Claude Code to activate.")
     print()
-    print(f"  Skill    : {skill_dst}")
-    print(f"  Settings : {settings_path}")
-    print(f"  Endpoint : edit {skill_dst / 'telemetry.yaml'}")
+    print(f"  Skill (project) : {skill_dst}")
+    print(f"  Skill (central) : {central}")
+    print(f"  Settings        : {settings_path}")
+    print(f"  Endpoint        : edit {skill_dst / 'telemetry.yaml'}")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
 
@@ -136,23 +171,25 @@ def main() -> None:
     skill_dst = project_root / ".claude" / "skills" / "code-reviewer"
     settings_path = project_root / ".claude" / "settings.json"
     requirements = _SETUP_DIR / "requirements.txt"
-    pre_cmd, post_cmd = _hook_commands(skill_dst)
+    mac_pre, win_pre, mac_post, win_post = _hook_commands()
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("  JPMC AI Platform — code-reviewer skill setup")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
-    print(f"  Python   : {_python_path()}")
-    print(f"  Pre-hook : {pre_cmd}")
-    print(f"  Post-hook: {post_cmd}")
+    print(f"  Pre-hook  (mac): {mac_pre}")
+    print(f"  Pre-hook  (win): {win_pre}")
+    print(f"  Post-hook (mac): {mac_post}")
+    print(f"  Post-hook (win): {win_post}")
     print()
     _copy_skill(skill_dst)
+    central = _install_central()
     _check_jaeger()
     settings = _load_settings(settings_path)
-    settings = _merge_hooks(settings, pre_cmd, post_cmd)
+    settings = _merge_hooks(settings, mac_pre, win_pre, mac_post, win_post)
     _write_settings(settings_path, settings)
     _install_deps(requirements)
-    _print_summary(skill_dst, settings_path)
+    _print_summary(skill_dst, central, settings_path)
 
 
 if __name__ == "__main__":

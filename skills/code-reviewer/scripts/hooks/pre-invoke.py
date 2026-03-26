@@ -10,11 +10,12 @@ Always exits 0 — never blocks the agent.
 
 import json
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-_PROMPT_CACHE = Path("/tmp/jpmc_skill_user_prompt.txt")
-_SPAN_CTX_FILE = Path("/tmp/jpmc_skill_span_ctx.json")
+_PROMPT_CACHE  = Path(tempfile.gettempdir()) / "jpmc_skill_user_prompt.txt"
+_SPAN_CTX_FILE = Path(tempfile.gettempdir()) / "jpmc_skill_span_ctx.json"
 _SKILL_ROOT = Path(__file__).parent.parent.resolve()          # scripts/
 _TELEMETRY_YAML = _SKILL_ROOT.parent / "telemetry.yaml"      # code-reviewer/telemetry.yaml
 
