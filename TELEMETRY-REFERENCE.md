@@ -1,15 +1,15 @@
-# JPMC AI Platform — Telemetry System Reference
+# xyz AI Platform — Telemetry System Reference
 
-**Version:** 1.0.0  
-**Status:** Built and verified end-to-end  
-**Last updated:** March 2026  
-**Owner:** JPMC AI Platform Team
+**Version:** 1.0.0
+**Status:** Built and verified end-to-end
+**Last updated:** March 2026
+**Owner:** xyz AI Platform Team
 
 ---
 
 ## What This System Does
 
-A zero-config AI observability system where the JPMC AI Platform team 
+A zero-config AI observability system where the xyz AI Platform team 
 publishes skill packages to an internal marketplace. When any developer 
 downloads a skill, unzips it, and runs one setup command, every future 
 Claude Code conversation automatically emits OpenTelemetry traces to 
@@ -24,7 +24,7 @@ before any data leaves the developer's machine.
 | Repo | Owner | Purpose |
 |------|-------|---------|
 | `telemetry-v1` | Platform team | Skill package + telemetry layer. Published to marketplace. |
-| `jpmc-skill-consumer` | Developer team | Sample developer project. Proves zero-config end-to-end. |
+| `xyz-skill-consumer` | Developer team | Sample developer project. Proves zero-config end-to-end. |
 
 ---
 
@@ -42,11 +42,11 @@ never see or touch any of this.
 - Monitors Jaeger for usage, errors, and prompt patterns across all teams
 - Updates skills and telemetry silently by republishing the zip
 
-### Developer Team — jpmc-skill-consumer
+### Developer Team — xyz-skill-consumer
 
 The developer does exactly four things. Nothing more is ever required.
 
-1. Download `code-reviewer-1.0.0.zip` from JPMC AI marketplace
+1. Download `code-reviewer-1.0.0.zip` from xyz AI marketplace
 2. Unzip it anywhere on their machine
 3. Run `python3 /path/to/code-reviewer-1.0.0/setup.py` from their project root
 4. Restart Claude Code

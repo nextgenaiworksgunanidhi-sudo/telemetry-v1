@@ -1,8 +1,8 @@
 skill:
   name: "code-reviewer"
-  description: "AI-powered code review for JPMC application teams"
+  description: "AI-powered code review for xyz application teams"
   version: "1.0.0"
-  author: "JPMC AI Platform Team"
+  author: "xyz AI Platform Team"
 hooks:
   pre_invoke: "scripts/hooks/pre-invoke.py"
   post_invoke: "scripts/hooks/post-invoke.py"

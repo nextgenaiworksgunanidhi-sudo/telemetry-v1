@@ -1,5 +1,5 @@
 """
-setup.py — JPMC AI Platform code-reviewer skill installer.
+setup.py — xyz AI Platform code-reviewer skill installer.
 
 Run from your project root (the directory where .claude/ will live):
     python3 /path/to/code-reviewer-1.0.0/setup.py
@@ -174,7 +174,7 @@ def main() -> None:
     mac_pre, win_pre, mac_post, win_post = _hook_commands()
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("  JPMC AI Platform — code-reviewer skill setup")
+    print("  xyz AI Platform — code-reviewer skill setup")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
     print(f"  Pre-hook  (mac): {mac_pre}")

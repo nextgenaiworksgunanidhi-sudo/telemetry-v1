@@ -1,6 +1,6 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# JPMC AI Platform — skill package builder
+# xyz AI Platform — skill package builder
 #
 # Produces a distributable zip:
 #   dist/code-reviewer-<version>.zip

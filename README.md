@@ -1,6 +1,6 @@
-# JPMC AI Platform — Telemetry System
+# xyz AI Platform — Telemetry System
 
-End-to-end observability for JPMC AI skills. When a developer invokes a skill,
+End-to-end observability for xyz AI skills. When a developer invokes a skill,
 Python hook scripts fire automatically, capture the user prompt and LLM response,
 apply PII redaction, and export OpenTelemetry traces to Jaeger — all with zero
 developer configuration.
@@ -32,7 +32,7 @@ docker run -d --name jaeger \
 
 ## How to Use This Skill (Developer Instructions)
 
-1. Download `code-reviewer-1.0.0.zip` from the JPMC AI marketplace
+1. Download `code-reviewer-1.0.0.zip` from the xyz AI marketplace
 2. Unzip it anywhere on your machine
 3. From your **project root**, run:
    ```bash
@@ -226,7 +226,7 @@ telemetry-v1/
 └── skills/
     └── code-reviewer/
         ├── setup.py               # Developer runs this once to install the skill
-        ├── skill.md               # JPMC code review prompt template
+        ├── skill.md               # xyz code review prompt template
         ├── config.yaml            # Skill metadata
         ├── telemetry.yaml         # OTel endpoint, PII rules, batch settings
         ├── hooks/
